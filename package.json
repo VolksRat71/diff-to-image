@@ -2,7 +2,7 @@
   "name": "diff-to-image",
   "version": "0.1.0",
   "private": true,
-  "homepage": "https://nathanielryan.github.io/diff-to-image",
+  "homepage": "https://volksrat71.github.io/diff-to-image",
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
