@@ -1,4 +1,4 @@
-# Git Diff to Image
+# [Git Diff to Image](https://volksrat71.github.io/diff-to-image/)
 
 A simple React application that allows you to convert git diff output to images.
 
