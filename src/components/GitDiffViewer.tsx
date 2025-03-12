@@ -41,6 +41,7 @@ const GitDiffViewer: React.FC = () => {
   const [showSavedDiffs, setShowSavedDiffs] = useState<boolean>(false);
   const [exportName, setExportName] = useState<string>('');
   const [currentDiffId, setCurrentDiffId] = useState<string>('');
+  const [showLineNumbers, setShowLineNumbers] = useState<boolean>(false);
 
   const diffContainerRef = useRef<HTMLDivElement>(null);
 
@@ -254,6 +255,31 @@ const GitDiffViewer: React.FC = () => {
     return ' ';
   };
 
+  // Calculate line numbers for a hunk
+  const calculateLineNumbers = (hunk: DiffHunk): { oldLineNum: number; newLineNum: number }[] => {
+    // Extract line numbers from hunk header
+    // Format is @@ -oldStart,oldCount +newStart,newCount @@
+    const match = hunk.header.match(/@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (!match) return [];
+
+    let oldLineNum = parseInt(match[1]);
+    let newLineNum = parseInt(match[2]);
+
+    return hunk.lines.map(line => {
+      const result = { oldLineNum, newLineNum };
+
+      if (!line.startsWith('+')) {
+        oldLineNum++;
+      }
+
+      if (!line.startsWith('-')) {
+        newLineNum++;
+      }
+
+      return result;
+    });
+  };
+
   // Handle drag and drop
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -379,6 +405,9 @@ const GitDiffViewer: React.FC = () => {
       const topPadding = 10; // Reduced from 20
       const bottomPadding = 10;
 
+      // Additional padding when line numbers are shown
+      const lineNumberPadding = showLineNumbers ? 80 : 0;
+
       let totalHeight = topPadding; // Start with top padding
 
       // Calculate height for all content
@@ -458,8 +487,11 @@ const GitDiffViewer: React.FC = () => {
           ctx.fillText(hunk.header, xPadding, yOffset + 2);
           yOffset += hunkHeaderHeight;
 
+          // Calculate line numbers if needed
+          const lineNumbers = showLineNumbers ? calculateLineNumbers(hunk) : null;
+
           // Draw lines
-          hunk.lines.forEach((line) => {
+          hunk.lines.forEach((line, lineIndex) => {
             // Set line background based on content
             if (line.startsWith('+')) {
               ctx.fillStyle = darkMode ? '#064e3b' : '#d1fae5';
@@ -473,15 +505,69 @@ const GitDiffViewer: React.FC = () => {
               ctx.fillRect(0, yOffset, canvas.width, lineHeight);
             }
 
-            // Set text color
+            let contentXPosition = xPadding;
+
+            // Draw line numbers if enabled
+            if (showLineNumbers && lineNumbers && lineNumbers[lineIndex]) {
+              const numbers = lineNumbers[lineIndex];
+              ctx.fillStyle = darkMode ? '#94a3b8' : '#9ca3af';
+
+              // Old line number (left)
+              if (!line.startsWith('+')) {
+                ctx.fillText(numbers.oldLineNum.toString(), xPadding, yOffset + 1);
+              }
+
+              // New line number (right)
+              if (!line.startsWith('-')) {
+                ctx.fillText(numbers.newLineNum.toString(), xPadding + 40, yOffset + 1);
+              }
+
+              // Draw vertical divider lines for line numbers
+              const dividerColor = darkMode ? '#475569' : '#e5e7eb'; // Use a color that matches the UI border
+              ctx.strokeStyle = dividerColor;
+              ctx.lineWidth = 1;
+
+              // First divider (after old line number)
+              if (!line.startsWith('+')) {
+                ctx.beginPath();
+                ctx.moveTo(xPadding + 35, yOffset);
+                ctx.lineTo(xPadding + 35, yOffset + lineHeight);
+                ctx.stroke();
+              }
+
+              // Second divider (after new line number)
+              ctx.beginPath();
+              ctx.moveTo(xPadding + 75, yOffset);
+              ctx.lineTo(xPadding + 75, yOffset + lineHeight);
+              ctx.stroke();
+
+              // Third divider (after line prefix)
+              ctx.beginPath();
+              ctx.moveTo(xPadding + lineNumberPadding + 15, yOffset);
+              ctx.lineTo(xPadding + lineNumberPadding + 15, yOffset + lineHeight);
+              ctx.stroke();
+
+              // Adjust starting position for content
+              contentXPosition = xPadding + lineNumberPadding;
+            } else {
+              // When line numbers are not shown, still draw the divider after the prefix
+              ctx.strokeStyle = darkMode ? '#475569' : '#e5e7eb';
+              ctx.lineWidth = 1;
+              ctx.beginPath();
+              ctx.moveTo(xPadding + 15, yOffset);
+              ctx.lineTo(xPadding + 15, yOffset + lineHeight);
+              ctx.stroke();
+            }
+
+            // Set text color for prefix and content
             ctx.fillStyle = darkMode ? '#e2e8f0' : '#1f2937';
 
             // Draw line prefix
-            ctx.fillText(getLinePrefix(line), xPadding, yOffset + 1);
+            ctx.fillText(getLinePrefix(line), contentXPosition, yOffset + 1);
 
             // Draw line content
             const content = line.startsWith('+') || line.startsWith('-') ? line.substring(1) : line;
-            ctx.fillText(content, xPadding + 20, yOffset + 1);
+            ctx.fillText(content, contentXPosition + 20, yOffset + 1);
 
             yOffset += lineHeight;
           });
@@ -539,6 +625,11 @@ const GitDiffViewer: React.FC = () => {
     setShowPreview(prev => !prev);
   };
 
+  // Toggle line numbers
+  const toggleLineNumbers = () => {
+    setShowLineNumbers(prev => !prev);
+  };
+
   // Toggle selection mode between files and hunks
   const toggleSelectionMode = () => {
     setSelectMode(prev => prev === 'files' ? 'hunks' : 'files');
@@ -551,7 +642,7 @@ const GitDiffViewer: React.FC = () => {
         <div className="flex space-x-2">
           <button
             onClick={toggleDarkMode}
-            className={`px-3 py-1 rounded-md ${darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-200 text-gray-800'}`}
+            className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-700 text-gray-200 focus:ring-gray-400' : 'bg-gray-200 text-gray-800 focus:ring-gray-500'}`}
             title="Toggle dark/light mode"
           >
             {darkMode ? '☀️ Light' : '🌙 Dark'}
@@ -559,7 +650,7 @@ const GitDiffViewer: React.FC = () => {
 
           <button
             onClick={() => setShowSavedDiffs(!showSavedDiffs)}
-            className={`px-3 py-1 rounded-md ${darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-200 text-gray-800'}`}
+            className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-700 text-gray-200 focus:ring-gray-400' : 'bg-gray-200 text-gray-800 focus:ring-gray-500'}`}
             title="Show saved diffs"
           >
             📂 Saved
@@ -568,8 +659,15 @@ const GitDiffViewer: React.FC = () => {
           {parsedDiff.length > 0 && (
             <>
               <button
+                onClick={toggleLineNumbers}
+                className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-700 text-gray-200 focus:ring-gray-400' : 'bg-gray-200 text-gray-800 focus:ring-gray-500'}`}
+                title="Toggle line numbers"
+              >
+                {showLineNumbers ? '🔢 Hide Numbers' : '🔢 Show Numbers'}
+              </button>
+              <button
                 onClick={togglePreview}
-                className={`px-3 py-1 rounded-md ${darkMode ? 'bg-gray-700 text-gray-200' : 'bg-gray-200 text-gray-800'}`}
+                className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-700 text-gray-200 focus:ring-gray-400' : 'bg-gray-200 text-gray-800 focus:ring-gray-500'}`}
                 title="Toggle preview mode"
               >
                 {showPreview ? '🔍 Hide Preview' : '🔍 Show Preview'}
@@ -577,7 +675,7 @@ const GitDiffViewer: React.FC = () => {
               <button
                 onClick={downloadAsImage}
                 disabled={isGeneratingImage}
-                className={`px-3 py-1 rounded-md ${darkMode ? 'bg-blue-700 text-white' : 'bg-blue-500 text-white'} ${isGeneratingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-blue-700 text-white focus:ring-blue-400' : 'bg-blue-500 text-white focus:ring-blue-300'} ${isGeneratingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
                 title="Download as image"
               >
                 {isGeneratingImage ? '⏳ Generating...' : '📷 Download Image'}
@@ -588,8 +686,10 @@ const GitDiffViewer: React.FC = () => {
       </div>
 
       {/* Saved Diffs Panel */}
-      {showSavedDiffs && (
-        <div className={`mb-4 p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+      <div
+        className={`overflow-hidden transition-all duration-300 ease-in-out ${showSavedDiffs ? 'max-h-[500px] opacity-100 mb-4' : 'max-h-0 opacity-0'}`}
+      >
+        <div className={`p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
           <h2 className="text-lg font-bold mb-2">Saved Diffs</h2>
 
           {savedDiffs.length === 0 ? (
@@ -600,7 +700,7 @@ const GitDiffViewer: React.FC = () => {
                 <div
                   key={diff.id}
                   onClick={() => loadSavedDiff(diff.id)}
-                  className={`p-2 mb-1 rounded cursor-pointer flex justify-between items-center ${diff.id === currentDiffId
+                  className={`p-2 mb-1 rounded cursor-pointer flex justify-between items-center transition-colors duration-200 ${diff.id === currentDiffId
                       ? darkMode ? 'bg-blue-800' : 'bg-blue-100'
                       : darkMode ? 'bg-gray-600 hover:bg-gray-500' : 'bg-gray-200 hover:bg-gray-300'
                     }`}
@@ -619,13 +719,13 @@ const GitDiffViewer: React.FC = () => {
                         onChange={(e) => setExportName(e.target.value)}
                         onBlur={() => renameSavedDiff(diff.id, exportName)}
                         onClick={(e) => e.stopPropagation()}
-                        className={`text-sm px-2 py-1 rounded mr-1 w-40 ${darkMode ? 'bg-gray-700 text-gray-200' : 'bg-white text-gray-800'}`}
+                        className={`text-sm px-2 py-1 rounded mr-1 w-40 transition-colors duration-200 ${darkMode ? 'bg-gray-700 text-gray-200 focus:bg-gray-600' : 'bg-white text-gray-800 focus:bg-gray-50'}`}
                         placeholder="Rename diff..."
                       />
                     )}
                     <button
                       onClick={(e) => deleteSavedDiff(diff.id, e)}
-                      className={`p-1 rounded ${darkMode ? 'bg-red-900 hover:bg-red-800' : 'bg-red-100 hover:bg-red-200'}`}
+                      className={`p-1 rounded transition-colors duration-200 ${darkMode ? 'bg-red-900 hover:bg-red-800' : 'bg-red-100 hover:bg-red-200'}`}
                       title="Delete diff"
                     >
                       🗑️
@@ -636,11 +736,11 @@ const GitDiffViewer: React.FC = () => {
             </div>
           )}
         </div>
-      )}
+      </div>
 
       {/* Controls */}
       {parsedDiff.length > 0 && (
-        <div className={`mb-4 p-4 rounded-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+        <div className={`mb-4 p-4 rounded-lg transition-colors duration-300 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
               <label className="block mb-2">Font Size: {fontSize}px</label>
@@ -650,7 +750,7 @@ const GitDiffViewer: React.FC = () => {
                 max="24"
                 value={fontSize}
                 onChange={(e) => setFontSize(parseInt(e.target.value))}
-                className="w-full"
+                className="w-full transition-opacity duration-200 hover:opacity-80"
               />
             </div>
             <div>
@@ -661,7 +761,7 @@ const GitDiffViewer: React.FC = () => {
                 max="150"
                 value={containerWidth}
                 onChange={(e) => setContainerWidth(parseInt(e.target.value))}
-                className="w-full"
+                className="w-full transition-opacity duration-200 hover:opacity-80"
               />
             </div>
           </div>
@@ -674,7 +774,7 @@ const GitDiffViewer: React.FC = () => {
               value={exportName}
               onChange={(e) => setExportName(e.target.value)}
               placeholder="Enter name for export..."
-              className={`flex-1 px-3 py-1 rounded ${darkMode ? 'bg-gray-600 text-gray-200' : 'bg-white text-gray-800'}`}
+              className={`flex-1 px-3 py-1 rounded transition-colors duration-200 ${darkMode ? 'bg-gray-600 text-gray-200 focus:bg-gray-500' : 'bg-white text-gray-800 focus:bg-gray-50'}`}
             />
           </div>
 
@@ -685,7 +785,7 @@ const GitDiffViewer: React.FC = () => {
                 <span className="font-medium">Selection Mode:</span>
                 <button
                   onClick={toggleSelectionMode}
-                  className={`px-3 py-1 rounded-md ${darkMode ? 'bg-gray-600 text-gray-200' : 'bg-gray-300 text-gray-800'}`}
+                  className={`px-3 py-1 rounded-md transition-all duration-200 ${darkMode ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-300 text-gray-800 hover:bg-gray-200'}`}
                 >
                   {selectMode === 'files' ? '📁 Files' : '📑 Hunks'}
                 </button>
@@ -694,13 +794,13 @@ const GitDiffViewer: React.FC = () => {
               <div className="flex space-x-2">
                 <button
                   onClick={() => selectAll(true)}
-                  className={`px-3 py-1 rounded-md ${darkMode ? 'bg-green-800 text-white' : 'bg-green-100 text-green-800'}`}
+                  className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 ${darkMode ? 'bg-green-800 text-white hover:bg-green-700' : 'bg-green-100 text-green-800 hover:bg-green-200'}`}
                 >
                   Select All
                 </button>
                 <button
                   onClick={() => selectAll(false)}
-                  className={`px-3 py-1 rounded-md ${darkMode ? 'bg-red-800 text-white' : 'bg-red-100 text-red-800'}`}
+                  className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 ${darkMode ? 'bg-red-800 text-white hover:bg-red-700' : 'bg-red-100 text-red-800 hover:bg-red-200'}`}
                 >
                   Deselect All
                 </button>
@@ -709,19 +809,21 @@ const GitDiffViewer: React.FC = () => {
           </div>
 
           {/* Preview notice */}
-          {showPreview && (
-            <div className="mt-4 p-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded">
+          <div
+            className={`transition-all duration-300 ease-in-out overflow-hidden ${showPreview ? 'max-h-20 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}
+          >
+            <div className="p-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded">
               <p>
                 <strong>Preview Mode:</strong> This view shows how your selections will appear in the downloaded image.
                 Only selected files and hunks will be included in the download.
               </p>
             </div>
-          )}
+          </div>
         </div>
       )}
 
       <div
-        className={`border-2 border-dashed rounded-lg p-6 mb-6 text-center cursor-pointer ${darkMode ? 'border-gray-600 hover:border-gray-500' : 'border-gray-300 hover:border-gray-400'}`}
+        className={`border-2 border-dashed rounded-lg p-6 mb-6 text-center cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${darkMode ? 'border-gray-600 hover:border-gray-500' : 'border-gray-300 hover:border-gray-400'}`}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
         onClick={() => {
@@ -751,25 +853,25 @@ const GitDiffViewer: React.FC = () => {
           maxWidth: '100%',
           overflowX: 'auto'
         }}
-        className={showPreview ? "relative" : ""}
+        className={`transition-all duration-300 ${showPreview ? "relative" : ""}`}
       >
         {parsedDiff.length > 0 ? (
-          <div className={`border rounded-lg overflow-hidden ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className={`border rounded-lg overflow-hidden transition-colors duration-300 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
             {parsedDiff.map((file, fileIndex) => (
               <div
                 key={fileIndex}
-                className={`mb-4 ${(!file.selected && !file.hunks.some(h => h.selected)) && showPreview ? 'opacity-30' : ''}`}
+                className={`mb-4 transition-opacity duration-300 ${(!file.selected && !file.hunks.some(h => h.selected)) && showPreview ? 'opacity-30' : ''}`}
               >
                 {/* File header */}
                 <div
-                  className={`p-2 border-b font-medium flex justify-between items-center ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-200'}`}
+                  className={`p-2 border-b font-medium flex justify-between items-center transition-colors duration-200 ${darkMode ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-200'}`}
                 >
                   <div className="flex items-center">
                     <button
                       onClick={() => toggleFileSelection(file.id)}
-                      className={`mr-2 w-5 h-5 flex items-center justify-center rounded ${file.selected
-                        ? (darkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white')
-                        : (darkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-300 text-gray-600')}`}
+                      className={`mr-2 w-5 h-5 flex items-center justify-center rounded transition-colors duration-200 ${file.selected
+                        ? (darkMode ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-blue-500 text-white hover:bg-blue-400')
+                        : (darkMode ? 'bg-gray-600 text-gray-300 hover:bg-gray-500' : 'bg-gray-300 text-gray-600 hover:bg-gray-200')}`}
                       title={file.selected ? "Deselect file" : "Select file"}
                     >
                       {file.selected ? '✓' : ''}
@@ -786,18 +888,18 @@ const GitDiffViewer: React.FC = () => {
                   file.hunks.map((hunk, hunkIndex) => (
                     <div
                       key={hunkIndex}
-                      className={`border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${!hunk.selected && showPreview ? 'opacity-30' : ''}`}
+                      className={`border-t transition-all duration-200 ${darkMode ? 'border-gray-700' : 'border-gray-200'} ${!hunk.selected && showPreview ? 'opacity-30' : ''}`}
                     >
                       {/* Hunk header */}
                       <div
-                        className={`px-4 py-1 flex justify-between items-center ${darkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-50 text-gray-500'}`}
+                        className={`px-4 py-1 flex justify-between items-center transition-colors duration-200 ${darkMode ? 'bg-gray-700 text-gray-400' : 'bg-gray-50 text-gray-500'}`}
                       >
                         <div className="flex items-center">
                           <button
                             onClick={() => toggleHunkSelection(file.id, hunk.id)}
-                            className={`mr-2 w-4 h-4 flex items-center justify-center rounded ${hunk.selected
-                              ? (darkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white')
-                              : (darkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-300 text-gray-600')}`}
+                            className={`mr-2 w-4 h-4 flex items-center justify-center rounded transition-colors duration-200 ${hunk.selected
+                              ? (darkMode ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-blue-500 text-white hover:bg-blue-400')
+                              : (darkMode ? 'bg-gray-600 text-gray-300 hover:bg-gray-500' : 'bg-gray-300 text-gray-600 hover:bg-gray-200')}`}
                             title={hunk.selected ? "Deselect hunk" : "Select hunk"}
                           >
                             {hunk.selected ? '✓' : ''}
@@ -814,16 +916,34 @@ const GitDiffViewer: React.FC = () => {
                         <div>
                           <table className="w-full table-fixed">
                             <tbody>
-                              {hunk.lines.map((line, lineIndex) => (
-                                <tr key={lineIndex} className={`${getLineColor(line)} ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
-                                  <td className={`py-0 pl-2 pr-1 text-right select-none w-8 border-r ${darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200'}`}>
-                                    {getLinePrefix(line)}
-                                  </td>
-                                  <td className="py-0 px-2 whitespace-normal break-all">
-                                    {line.startsWith('+') || line.startsWith('-') ? line.substring(1) : line}
-                                  </td>
-                                </tr>
-                              ))}
+                              {hunk.lines.map((line, lineIndex) => {
+                                // Calculate line numbers when they're needed
+                                const lineNumbers = showLineNumbers ? calculateLineNumbers(hunk)[lineIndex] : null;
+
+                                return (
+                                  <tr key={lineIndex} className={`${getLineColor(line)} transition-colors duration-150 ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
+                                    {/* Line numbers (when enabled) */}
+                                    {showLineNumbers && (
+                                      <>
+                                        <td className={`py-0 px-1 text-right select-none w-12 transition-colors duration-200 ${darkMode ? 'text-gray-400' : 'text-gray-500'} ${line.startsWith('+') ? '' : 'border-r ' + (darkMode ? 'border-gray-600' : 'border-gray-200')}`}>
+                                          {!line.startsWith('+') ? lineNumbers?.oldLineNum : ''}
+                                        </td>
+                                        <td className={`py-0 px-1 text-right select-none w-12 border-r transition-colors duration-200 ${darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200'}`}>
+                                          {!line.startsWith('-') ? lineNumbers?.newLineNum : ''}
+                                        </td>
+                                      </>
+                                    )}
+                                    {/* Line prefix (+/-/space) */}
+                                    <td className={`py-0 pl-2 pr-1 text-right select-none w-8 border-r transition-colors duration-200 ${darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200'}`}>
+                                      {getLinePrefix(line)}
+                                    </td>
+                                    {/* Line content */}
+                                    <td className="py-0 px-2 whitespace-normal break-all">
+                                      {line.startsWith('+') || line.startsWith('-') ? line.substring(1) : line}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                           </table>
                         </div>
@@ -834,20 +954,20 @@ const GitDiffViewer: React.FC = () => {
             ))}
           </div>
         ) : diffText ? (
-          <div className={`text-center py-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <div className={`text-center py-4 transition-colors duration-300 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             No changes detected in this file. Please check the format.
           </div>
         ) : null}
 
         {!diffText && (
-          <div className={`text-center py-4 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+          <div className={`text-center py-4 animate-pulse transition-colors duration-300 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
             Upload a git diff file to view changes
           </div>
         )}
 
         {/* Preview overlay */}
         {showPreview && (
-          <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-md pointer-events-none">
+          <div className="absolute top-2 right-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-md pointer-events-none animate-fade-in">
             Preview Mode
           </div>
         )}
