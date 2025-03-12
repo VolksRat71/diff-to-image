@@ -639,50 +639,6 @@ const GitDiffViewer: React.FC = () => {
     <div className={`flex flex-col w-full max-w-6xl mx-auto p-4 transition-colors duration-300 ${darkMode ? 'bg-slate-800 text-gray-200' : 'bg-white text-gray-800'}`} style={{ fontFamily: 'monospace' }}>
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-xl font-bold">Git Diff Viewer</h1>
-        <div className="flex space-x-2">
-          <button
-            onClick={toggleDarkMode}
-            className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-700 text-gray-200 focus:ring-gray-400' : 'bg-gray-200 text-gray-800 focus:ring-gray-500'}`}
-            title="Toggle dark/light mode"
-          >
-            {darkMode ? '☀️ Light' : '🌙 Dark'}
-          </button>
-
-          <button
-            onClick={() => setShowSavedDiffs(!showSavedDiffs)}
-            className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-700 text-gray-200 focus:ring-gray-400' : 'bg-gray-200 text-gray-800 focus:ring-gray-500'}`}
-            title="Show saved diffs"
-          >
-            📂 Saved
-          </button>
-
-          {parsedDiff.length > 0 && (
-            <>
-              <button
-                onClick={toggleLineNumbers}
-                className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-700 text-gray-200 focus:ring-gray-400' : 'bg-gray-200 text-gray-800 focus:ring-gray-500'}`}
-                title="Toggle line numbers"
-              >
-                {showLineNumbers ? '🔢 Hide Numbers' : '🔢 Show Numbers'}
-              </button>
-              <button
-                onClick={togglePreview}
-                className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-700 text-gray-200 focus:ring-gray-400' : 'bg-gray-200 text-gray-800 focus:ring-gray-500'}`}
-                title="Toggle preview mode"
-              >
-                {showPreview ? '🔍 Hide Preview' : '🔍 Show Preview'}
-              </button>
-              <button
-                onClick={downloadAsImage}
-                disabled={isGeneratingImage}
-                className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-blue-700 text-white focus:ring-blue-400' : 'bg-blue-500 text-white focus:ring-blue-300'} ${isGeneratingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
-                title="Download as image"
-              >
-                {isGeneratingImage ? '⏳ Generating...' : '📷 Download Image'}
-              </button>
-            </>
-          )}
-        </div>
       </div>
 
       {/* Saved Diffs Panel */}
@@ -738,89 +694,145 @@ const GitDiffViewer: React.FC = () => {
         </div>
       </div>
 
-      {/* Controls */}
-      {parsedDiff.length > 0 && (
-        <div className={`mb-4 p-4 rounded-lg transition-colors duration-300 ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block mb-2">Font Size: {fontSize}px</label>
-              <input
-                type="range"
-                min="8"
-                max="24"
-                value={fontSize}
-                onChange={(e) => setFontSize(parseInt(e.target.value))}
-                className="w-full transition-opacity duration-200 hover:opacity-80"
-              />
-            </div>
-            <div>
-              <label className="block mb-2">Width: {containerWidth}%</label>
-              <input
-                type="range"
-                min="50"
-                max="150"
-                value={containerWidth}
-                onChange={(e) => setContainerWidth(parseInt(e.target.value))}
-                className="w-full transition-opacity duration-200 hover:opacity-80"
-              />
-            </div>
+      {/* Controls & Buttons - Sticky */}
+      <div className={`mb-4 p-4 rounded-lg transition-colors duration-300 sticky top-2 z-10 shadow-lg ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+        {/* Main action buttons */}
+        <div className="flex flex-wrap justify-between items-center mb-4 border-b border-gray-600 pb-4">
+          <div className="flex flex-wrap gap-2 items-center mb-2 md:mb-0">
+            <button
+              onClick={toggleDarkMode}
+              className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-600 text-gray-200 focus:ring-gray-400' : 'bg-gray-300 text-gray-800 focus:ring-gray-500'}`}
+              title="Toggle dark/light mode"
+            >
+              {darkMode ? '☀️ Light' : '🌙 Dark'}
+            </button>
+
+            <button
+              onClick={() => setShowSavedDiffs(!showSavedDiffs)}
+              className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-600 text-gray-200 focus:ring-gray-400' : 'bg-gray-300 text-gray-800 focus:ring-gray-500'}`}
+              title="Show saved diffs"
+            >
+              📂 {showSavedDiffs ? 'Hide Saved' : 'Show Saved'}
+            </button>
           </div>
 
-          {/* Export name input */}
-          <div className="flex flex-wrap items-center mb-4">
-            <label className="font-medium mr-2">Export Name:</label>
-            <input
-              type="text"
-              value={exportName}
-              onChange={(e) => setExportName(e.target.value)}
-              placeholder="Enter name for export..."
-              className={`flex-1 px-3 py-1 rounded transition-colors duration-200 ${darkMode ? 'bg-gray-600 text-gray-200 focus:bg-gray-500' : 'bg-white text-gray-800 focus:bg-gray-50'}`}
-            />
-          </div>
-
-          {/* Selection controls */}
-          <div className="border-t border-gray-600 pt-4 mt-2">
-            <div className="flex flex-wrap justify-between items-center mb-2">
-              <div className="flex items-center space-x-4 mb-2 md:mb-0">
-                <span className="font-medium">Selection Mode:</span>
-                <button
-                  onClick={toggleSelectionMode}
-                  className={`px-3 py-1 rounded-md transition-all duration-200 ${darkMode ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-300 text-gray-800 hover:bg-gray-200'}`}
-                >
-                  {selectMode === 'files' ? '📁 Files' : '📑 Hunks'}
-                </button>
-                <span className="text-sm">{selectionSummary}</span>
-              </div>
-              <div className="flex space-x-2">
-                <button
-                  onClick={() => selectAll(true)}
-                  className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 ${darkMode ? 'bg-green-800 text-white hover:bg-green-700' : 'bg-green-100 text-green-800 hover:bg-green-200'}`}
-                >
-                  Select All
-                </button>
-                <button
-                  onClick={() => selectAll(false)}
-                  className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 ${darkMode ? 'bg-red-800 text-white hover:bg-red-700' : 'bg-red-100 text-red-800 hover:bg-red-200'}`}
-                >
-                  Deselect All
-                </button>
-              </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className={`transition-all duration-300 ${parsedDiff.length > 0 ? 'opacity-100' : 'opacity-50'}`}>
+              <button
+                onClick={toggleLineNumbers}
+                disabled={parsedDiff.length === 0}
+                className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-600 text-gray-200 focus:ring-gray-400' : 'bg-gray-300 text-gray-800 focus:ring-gray-500'} ${parsedDiff.length === 0 ? 'cursor-not-allowed' : ''}`}
+                title="Toggle line numbers"
+              >
+                {showLineNumbers ? '🔢 Hide Numbers' : '🔢 Show Numbers'}
+              </button>
             </div>
-          </div>
 
-          {/* Preview notice */}
-          <div
-            className={`transition-all duration-300 ease-in-out overflow-hidden ${showPreview ? 'max-h-20 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}
-          >
-            <div className="p-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded">
-              <p>
-                <strong>Preview Mode:</strong> This view shows how your selections will appear in the downloaded image.
-                Only selected files and hunks will be included in the download.
-              </p>
-            </div>
+            {parsedDiff.length > 0 && (
+              <>
+                <button
+                  onClick={togglePreview}
+                  className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-gray-600 text-gray-200 focus:ring-gray-400' : 'bg-gray-300 text-gray-800 focus:ring-gray-500'}`}
+                  title="Toggle preview mode"
+                >
+                  {showPreview ? '🔍 Hide Preview' : '🔍 Show Preview'}
+                </button>
+                <button
+                  onClick={downloadAsImage}
+                  disabled={isGeneratingImage}
+                  className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-opacity-50 ${darkMode ? 'bg-blue-700 text-white focus:ring-blue-400' : 'bg-blue-500 text-white focus:ring-blue-300'} ${isGeneratingImage ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  title="Download as image"
+                >
+                  {isGeneratingImage ? '⏳ Generating...' : '📷 Download Image'}
+                </button>
+              </>
+            )}
           </div>
         </div>
-      )}
+
+        {parsedDiff.length > 0 && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="block mb-2">Font Size: {fontSize}px</label>
+                <input
+                  type="range"
+                  min="8"
+                  max="24"
+                  value={fontSize}
+                  onChange={(e) => setFontSize(parseInt(e.target.value))}
+                  className="w-full transition-opacity duration-200 hover:opacity-80"
+                />
+              </div>
+              <div>
+                <label className="block mb-2">Width: {containerWidth}%</label>
+                <input
+                  type="range"
+                  min="50"
+                  max="150"
+                  value={containerWidth}
+                  onChange={(e) => setContainerWidth(parseInt(e.target.value))}
+                  className="w-full transition-opacity duration-200 hover:opacity-80"
+                />
+              </div>
+            </div>
+
+            {/* Export name input */}
+            <div className="flex flex-wrap items-center mb-4">
+              <label className="font-medium mr-2">Export Name:</label>
+              <input
+                type="text"
+                value={exportName}
+                onChange={(e) => setExportName(e.target.value)}
+                placeholder="Enter name for export..."
+                className={`flex-1 px-3 py-1 rounded transition-colors duration-200 ${darkMode ? 'bg-gray-600 text-gray-200 focus:bg-gray-500' : 'bg-white text-gray-800 focus:bg-gray-50'}`}
+              />
+            </div>
+
+            {/* Selection controls */}
+            <div className="border-t border-gray-600 pt-4 mt-2">
+              <div className="flex flex-wrap justify-between items-center mb-2">
+                <div className="flex items-center space-x-4 mb-2 md:mb-0">
+                  <span className="font-medium">Selection Mode:</span>
+                  <button
+                    onClick={toggleSelectionMode}
+                    className={`px-3 py-1 rounded-md transition-all duration-200 ${darkMode ? 'bg-gray-600 text-gray-200 hover:bg-gray-500' : 'bg-gray-300 text-gray-800 hover:bg-gray-200'}`}
+                  >
+                    {selectMode === 'files' ? '📁 Files' : '📑 Hunks'}
+                  </button>
+                  <span className="text-sm">{selectionSummary}</span>
+                </div>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => selectAll(true)}
+                    className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 ${darkMode ? 'bg-green-800 text-white hover:bg-green-700' : 'bg-green-100 text-green-800 hover:bg-green-200'}`}
+                  >
+                    Select All
+                  </button>
+                  <button
+                    onClick={() => selectAll(false)}
+                    className={`px-3 py-1 rounded-md transition-all duration-200 transform hover:scale-105 ${darkMode ? 'bg-red-800 text-white hover:bg-red-700' : 'bg-red-100 text-red-800 hover:bg-red-200'}`}
+                  >
+                    Deselect All
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Preview notice */}
+            <div
+              className={`transition-all duration-300 ease-in-out overflow-hidden ${showPreview ? 'max-h-20 opacity-100 mt-4' : 'max-h-0 opacity-0'}`}
+            >
+              <div className="p-2 bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 rounded">
+                <p>
+                  <strong>Preview Mode:</strong> This view shows how your selections will appear in the downloaded image.
+                  Only selected files and hunks will be included in the download.
+                </p>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
 
       <div
         className={`border-2 border-dashed rounded-lg p-6 mb-6 text-center cursor-pointer transition-all duration-200 transform hover:scale-[1.01] ${darkMode ? 'border-gray-600 hover:border-gray-500' : 'border-gray-300 hover:border-gray-400'}`}
@@ -853,7 +865,7 @@ const GitDiffViewer: React.FC = () => {
           maxWidth: '100%',
           overflowX: 'auto'
         }}
-        className={`transition-all duration-300 ${showPreview ? "relative" : ""}`}
+        className={`transition-all duration-300 mt-4 ${showPreview ? "relative" : ""}`}
       >
         {parsedDiff.length > 0 ? (
           <div className={`border rounded-lg overflow-hidden transition-colors duration-300 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
@@ -922,17 +934,13 @@ const GitDiffViewer: React.FC = () => {
 
                                 return (
                                   <tr key={lineIndex} className={`${getLineColor(line)} transition-colors duration-150 ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
-                                    {/* Line numbers (when enabled) */}
-                                    {showLineNumbers && (
-                                      <>
-                                        <td className={`py-0 px-1 text-right select-none w-12 transition-colors duration-200 ${darkMode ? 'text-gray-400' : 'text-gray-500'} ${line.startsWith('+') ? '' : 'border-r ' + (darkMode ? 'border-gray-600' : 'border-gray-200')}`}>
-                                          {!line.startsWith('+') ? lineNumbers?.oldLineNum : ''}
-                                        </td>
-                                        <td className={`py-0 px-1 text-right select-none w-12 border-r transition-colors duration-200 ${darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200'}`}>
-                                          {!line.startsWith('-') ? lineNumbers?.newLineNum : ''}
-                                        </td>
-                                      </>
-                                    )}
+                                    {/* Line numbers (when enabled) - fixed width with visibility animation instead of width animation */}
+                                    <td className={`py-0 px-1 text-right select-none w-12 border-r transition-all duration-300 ease-in-out ${darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200'} ${showLineNumbers ? 'opacity-100 visible' : 'opacity-0 hidden'} ${line.startsWith('+') ? 'border-r-0' : ''}`}>
+                                      {!line.startsWith('+') ? lineNumbers?.oldLineNum : ''}
+                                    </td>
+                                    <td className={`py-0 px-1 text-right select-none w-12 border-r transition-all duration-300 ease-in-out ${darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200'} ${showLineNumbers ? 'opacity-100 visible' : 'opacity-0 hidden'}`}>
+                                      {!line.startsWith('-') ? lineNumbers?.newLineNum : ''}
+                                    </td>
                                     {/* Line prefix (+/-/space) */}
                                     <td className={`py-0 pl-2 pr-1 text-right select-none w-8 border-r transition-colors duration-200 ${darkMode ? 'text-gray-400 border-gray-600' : 'text-gray-500 border-gray-200'}`}>
                                       {getLinePrefix(line)}
